@@ -1,23 +1,50 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mini_expense_tracker/core/providers/expense_provider.dart';
+import 'package:mini_expense_tracker/features/expenses/data/models/expense.dart';
+import 'package:mini_expense_tracker/l10n/app_localizations.dart';
 
-class AddExpenseSheet extends StatefulWidget {
+class AddExpenseSheet extends ConsumerStatefulWidget {
   const AddExpenseSheet({super.key});
 
   @override
-  State<AddExpenseSheet> createState() => _AddExpenseSheetState();
+  ConsumerState<AddExpenseSheet> createState() => _AddExpenseSheetState();
 }
 
-class _AddExpenseSheetState extends State<AddExpenseSheet> {
+class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
+  final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _notesController = TextEditingController();
+
+  IconData _iconForCategory(String category) {
+    switch (category) {
+      case 'Food':
+        return Icons.fastfood;
+      case 'Transportation':
+        return Icons.directions_car;
+      case 'Entertainment':
+        return Icons.movie;
+      default:
+        return Icons.shopping_cart;
+    }
+  }
+
   static const _categories = [
-    'Food & Drink',
+    'Food',
     'Transportation',
     'Shopping',
     'Entertainment',
     'Other',
   ];
 
-  String _category = 'Food & Drink';
+  String _category = 'Food';
   DateTime _date = DateTime.now();
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
 
   Future<void> _chooseCategory() async {
     final category = await showModalBottomSheet<String>(
@@ -36,7 +63,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
         ),
       ),
     );
-
+    if (!mounted) return;
     if (category != null) {
       setState(() => _category = category);
     }
@@ -49,7 +76,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-
+    if (!mounted) return;
     if (date != null) {
       setState(() => _date = date);
     }
@@ -76,6 +103,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: SizedBox(
@@ -91,11 +119,11 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.pop(context),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Center(
                       child: Text(
-                        'Add Transaction',
-                        style: TextStyle(
+                        l10n!.addTransaction,
+                        style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 18,
                         ),
@@ -129,16 +157,17 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: TextField(
-                      keyboardType: TextInputType.numberWithOptions(
+                      controller: _amountController,
+                      keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 35,
                         fontWeight: FontWeight.bold,
                       ),
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         hintText: '0.00',
                         border: InputBorder.none,
                       ),
@@ -149,24 +178,42 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
               const Divider(),
 
               _PickerRow(
-                icon: Icons.restaurant,
+                icon: _iconForCategory(_category),
                 label: _category,
                 onTap: _chooseCategory,
               ),
               const Divider(),
-              const TextField(
-                decoration: InputDecoration(labelText: 'Date'),
-                keyboardType: TextInputType.number,
+              _PickerRow(
+                icon: Icons.calendar_today,
+                label: _formattedDate,
+                onTap: _chooseDate,
               ),
-              const TextField(
-                decoration: InputDecoration(labelText: 'Category'),
+              const Divider(),
+
+              TextField(
+                controller: _notesController,
+                maxLines: 1,
+                decoration: InputDecoration(
+                  hintText: l10n.notes,
+                  prefixIcon: const Icon(Icons.notes),
+                  border: InputBorder.none,
+                ),
               ),
               ElevatedButton(
                 onPressed: () {
-                  // Add expense logic here.
+                  final Expense newExpense = Expense(
+                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    title: _notesController.text.isNotEmpty
+                        ? _notesController.text
+                        : _category,
+                    amount: double.tryParse(_amountController.text) ?? 0.0,
+                    category: _category,
+                    date: _date,
+                  );
+                  ref.read(expensesProvider.notifier).addExpense(newExpense);
                   Navigator.pop(context);
                 },
-                child: const Text('Add Expense'),
+                child: Text(l10n.add),
               ),
             ],
           ),

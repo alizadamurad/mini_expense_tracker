@@ -1,0 +1,8 @@
+{
+    "appTitle": "Expense Tracker",
+    "addTransaction": "Add Transaction",
+    "amount": "Amount",
+    "category": "Category",
+    "notes": "Notes",
+    "add": "Add"
+}
